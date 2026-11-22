@@ -34,6 +34,22 @@ TERMUX_SCRIPTDIR=$(cd "$(realpath "$(dirname "$0")")"; cd ..; pwd)
 : ${TERMUX_PODMAN_RUN_EXTRA_ARGS:=${TERMUX_DOCKER_RUN_EXTRA_ARGS:-}}
 : ${TERMUX_PODMAN_EXEC_EXTRA_ARGS:=${TERMUX_DOCKER_EXEC_EXTRA_ARGS:-}}
 : ${TERMUX_PODMAN_USE_SUDO:=${TERMUX_DOCKER_USE_SUDO:-}}
+# Optional file with additional environment variables for the container, e.g.
+# mirrors or proxies. Only read on the host by podman, not mounted. See
+# 'scripts/podman/env.local.example' for a template.
+if [ -n "${TERMUX_PODMAN_ENV_FILE-}" ]; then
+	if [ ! -f "$TERMUX_PODMAN_ENV_FILE" ]; then
+		echo "Error: TERMUX_PODMAN_ENV_FILE '$TERMUX_PODMAN_ENV_FILE' does not exist" 1>&2
+		exit 1
+	fi
+else
+	TERMUX_PODMAN_ENV_FILE="$TERMUX_SCRIPTDIR/scripts/podman/env.local"
+fi
+if [ -f "$TERMUX_PODMAN_ENV_FILE" ]; then
+	ENV_FILE_OPT="--env-file $TERMUX_PODMAN_ENV_FILE"
+else
+	ENV_FILE_OPT=""
+fi
 PODMAN=podman
 BUILDSCRIPT_NAME=build-package.sh
 CONTAINER_HOME_DIR=/home/builder
@@ -65,6 +81,11 @@ _show_usage() {
 	echo "                                 running the command in the container"
 	echo "  TERMUX_PODMAN_USE_SUDO         If set to any non-empty value, 'sudo' will be"
 	echo "                                 used to run 'podman' commands"
+	echo "  TERMUX_PODMAN_ENV_FILE         File with additional environment variables for"
+	echo "                                 the container, e.g. mirrors or proxies. Read by"
+	echo "                                 podman on the host, not mounted into the"
+	echo "                                 container (default: 'scripts/podman/env.local'"
+	echo "                                 if existing)"
 	echo ""
 	echo "The corresponding TERMUX_DOCKER_* variables of 'run-docker.sh' are accepted"
 	echo "as fallbacks."
@@ -78,6 +99,9 @@ _show_usage() {
 	echo "  removed first."
 	echo "- The above rules also apply to -m/--mount-termux-dirs option as it adds the"
 	echo "  mount arguments to TERMUX_PODMAN_RUN_EXTRA_ARGS."
+	echo "- Environment variables from the env file are applied both when creating the"
+	echo "  container and to every command run through this script, so changes to the file"
+	echo "  take effect immediately without recreating the container."
 	echo "- The dry-run option will only work if the first argument passed to this script"
 	echo "  which runs podman contains '$BUILDSCRIPT_NAME', and it will run"
 	echo "  'build-package-dry-run-simulation.sh' with arguments passed to this script."
@@ -246,6 +270,7 @@ if ! $SUDO $PODMAN container inspect $CONTAINER_NAME > /dev/null 2>&1; then
 		--volume $VOLUME \
 		$USERNS_OPT \
 		$SEC_OPT \
+		$ENV_FILE_OPT \
 		--tty \
 		$TERMUX_PODMAN_RUN_EXTRA_ARGS \
 		$TERMUX_BUILDER_IMAGE_NAME
@@ -307,4 +332,4 @@ if [ "$#" -eq "0" ]; then
 	set -- bash
 fi
 
-$SUDO $PODMAN exec $CI_OPT --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH" --interactive $DOCKER_TTY $TERMUX_PODMAN_EXEC_EXTRA_ARGS --user builder $CONTAINER_NAME "$@"
+$SUDO $PODMAN exec $CI_OPT $ENV_FILE_OPT --env "DOCKER_EXEC_PID_FILE_PATH=$DOCKER_EXEC_PID_FILE_PATH" --interactive $DOCKER_TTY $TERMUX_PODMAN_EXEC_EXTRA_ARGS --user builder $CONTAINER_NAME "$@"
