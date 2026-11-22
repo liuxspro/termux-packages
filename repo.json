@@ -17,5 +17,11 @@
     "distribution": "x11",
     "component": "main",
     "url": "https://packages-cf.termux.dev/apt/termux-x11"
-  }
+  },
+  "my-packages": {
+      "name": "termux.liuxs.pro",
+      "distribution": "stable",
+      "component": "main",
+      "url": "https://termux.liuxs.pro"
+    }
 }

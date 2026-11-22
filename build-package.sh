@@ -673,6 +673,13 @@ if [[ "${TERMUX_INSTALL_DEPS-false}" == "true" || "${TERMUX_PACKAGE_LIBRARY-bion
 		gpg --import "$TERMUX_SCRIPTDIR/packages/termux-keyring/termux-pacman.gpg"
 		gpg --no-tty --command-file <(echo -e "trust\n5\ny") --edit-key 998DE27318E867EA976BA877389CEED64573DFCA
 	}
+
+	# Signing key of the custom repository in repo.json ("my-packages"), used to
+	# verify the Release metadata of dependencies downloaded with -i/-I.
+	gpg --list-keys E85156009EF463BC37F2B043E5A75500FC2D5D32 > /dev/null 2>&1 || {
+		gpg --import "$TERMUX_SCRIPTDIR/packages/termux-keyring/liuxspro.gpg"
+		gpg --no-tty --command-file <(echo -e "trust\n5\ny") --edit-key E85156009EF463BC37F2B043E5A75500FC2D5D32
+	}
 fi
 
 for (( i=0; i < ${#PACKAGE_LIST[@]}; i++ )); do
